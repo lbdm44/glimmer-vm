@@ -93,6 +93,7 @@ export abstract class AbstractRenderTest {
   protected renderResult: Option<RenderResult> = null;
   private snapshot: NodesSnapshot = [];
   private helpers = {};
+  public template: Template;
 
   constructor(protected env = new TestEnvironment()) { }
 
@@ -134,7 +135,7 @@ export abstract class AbstractRenderTest {
     this.renderResult = this.renderTemplate(this.compile(template));
   }
 
-  protected abstract renderTemplate(template: Template<Opaque>): RenderResult;
+  protected abstract renderTemplate(template: string): RenderResult;
 
   rerender(properties: Dict<Opaque> = {}): void {
     this.setProperties(properties);
@@ -221,7 +222,6 @@ export abstract class AbstractRenderTest {
 
 export class RenderTests extends AbstractRenderTest {
   protected element: HTMLDivElement;
-  protected template: Option<Template<Opaque>>;
   constructor(env: TestEnvironment) {
     super(env);
     this.element = this.env.getAppendOperations().createElement('div') as HTMLDivElement;
@@ -275,9 +275,11 @@ export class RehydrationTests extends RenderTests {
     this.setupServer();
     this.populateHelpers();
     this.element = this.env.getAppendOperations().createElement('div') as HTMLDivElement;
+    let { env } = this;
     let template = expect(this.template, 'Must set up a template before calling renderServerSide');
     // Emulate server-side render
-    renderTemplate(this.env, template, {
+    renderTemplate(template, {
+      env,
       self: new UpdatableReference(this.context),
       parentNode: this.element,
       dynamicScope: new TestDynamicScope(),
@@ -303,7 +305,8 @@ export class RehydrationTests extends RenderTests {
     this.element = env.getAppendOperations().createElement('div') as HTMLDivElement;
     let template = expect(this.template, 'Must set up a template before calling renderClientSide');
     // Client-side rehydration
-    this.renderResult = renderTemplate(env, template, {
+    this.renderResult = renderTemplate(template, {
+      env,
       self: new UpdatableReference(this.context),
       parentNode: this.element,
       dynamicScope: new TestDynamicScope(),
