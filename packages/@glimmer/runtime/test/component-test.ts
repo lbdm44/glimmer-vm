@@ -15,7 +15,7 @@ function compile(template: string) {
 
 function commonSetup() {
   env = new TestEnvironment(); // TODO: Support SimpleDOM
-  env.registerBasicComponent('my-component', MyComponent, "<div>{{@arg1}}{{yield @yieldme}}{{@arg2}}</div>");
+  env.registerBasicComponent('my-component', BasicComponent, "<div>{{@arg1}}{{yield @yieldme}}{{@arg2}}</div>");
   root = document.createElement('div');
 }
 
@@ -85,20 +85,3 @@ module("[glimmer-runtime] Simple Components", hooks => {
     equalTokens(root, "<div color='green'>LEFT - hello! yield me</div>");
   });
 });
-
-class MyComponent extends BasicComponent {
-  public attrs: { color: string };
-
-  constructor(attrs: { color: string }) {
-    super(attrs);
-    this.attrs = attrs;
-  }
-
-  get testing() {
-    if (this.attrs.color === 'red') {
-      return '123';
-    } else {
-      return '456';
-    }
-  }
-}

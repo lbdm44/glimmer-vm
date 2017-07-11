@@ -1,6 +1,6 @@
 import { TagWrapper } from '../../reference/lib/validators';
 import { PathReference, Tagged, RevisionTag, DirtyableTag, Tag } from '@glimmer/reference';
-import { Template, RenderResult, RenderOptions } from '@glimmer/runtime';
+import { RenderResult, RenderOptions } from '@glimmer/runtime';
 import {
   TestEnvironment,
   UserHelper
@@ -93,7 +93,7 @@ export abstract class AbstractRenderTest {
   protected renderResult: Option<RenderResult> = null;
   private snapshot: NodesSnapshot = [];
   private helpers = {};
-  public template: Template;
+  public template: string;
 
   constructor(protected env = new TestEnvironment()) { }
 
@@ -108,8 +108,7 @@ export abstract class AbstractRenderTest {
   shouldBeVoid(tagName: string) {
     this.element.innerHTML = "";
     let html = "<" + tagName + " data-foo='bar'><p>hello</p>";
-    let template = this.compile(html);
-    this.renderTemplate(template);
+    this.renderTemplate(html);
 
     let tag = '<' + tagName + ' data-foo="bar">';
     let closing = '</' + tagName + '>';
@@ -124,15 +123,10 @@ export abstract class AbstractRenderTest {
     });
   }
 
-  protected compile(template: string): Template<Opaque> {
-    this.rawTemplate = template;
-    return this.env.compile(template);
-  }
-
   render(template: string, properties: Dict<Opaque> = {}): void {
     this.setProperties(properties);
 
-    this.renderResult = this.renderTemplate(this.compile(template));
+    this.renderResult = this.renderTemplate(template);
   }
 
   protected abstract renderTemplate(template: string): RenderResult;
@@ -226,9 +220,11 @@ export class RenderTests extends AbstractRenderTest {
     super(env);
     this.element = this.env.getAppendOperations().createElement('div') as HTMLDivElement;
   }
-  renderTemplate(template: Template<Opaque>): RenderResult {
+  renderTemplate(template: string): RenderResult {
     this.populateHelpers();
-    return renderTemplate(this.env, template, {
+    let { env } = this;
+    return renderTemplate(template, {
+      env,
       self: new UpdatableReference(this.context),
       parentNode: this.element,
       dynamicScope: new TestDynamicScope()
@@ -238,7 +234,7 @@ export class RenderTests extends AbstractRenderTest {
 
 export class RehydrationTests extends RenderTests {
   serialized: string;
-  setupServer(template: string = this.rawTemplate) {
+  setupServer(template: string = this.template) {
     let doc = new SimpleDOM.Document();
     let env = new TestEnvironment({
       document: doc,
@@ -247,7 +243,7 @@ export class RehydrationTests extends RenderTests {
     this.setup({ template, env });
   }
 
-  setupClient(template: string = this.rawTemplate) {
+  setupClient(template: string = this.template) {
     let env = new TestEnvironment();
     let div = document.createElement('div');
 
@@ -260,7 +256,7 @@ export class RehydrationTests extends RenderTests {
 
   setup({ template, context, env }: { template: string, context?: Dict<Opaque>, env?: TestEnvironment }) {
     if (env) this.env = env;
-    this.template = this.compile(template);
+    this.template = template;
     if (context) this.setProperties(context);
   }
 
@@ -301,7 +297,6 @@ export class RehydrationTests extends RenderTests {
     this.setupClient();
     this.populateHelpers();
     let { env } = this;
-    this.template = this.compile(this.rawTemplate);
     this.element = env.getAppendOperations().createElement('div') as HTMLDivElement;
     let template = expect(this.template, 'Must set up a template before calling renderClientSide');
     // Client-side rehydration
@@ -314,7 +309,7 @@ export class RehydrationTests extends RenderTests {
     });
   }
 
-  renderTemplate(template: Template<Opaque>): RenderResult {
+  renderTemplate(template: string): RenderResult {
     this.template = template;
     this.renderServerSide();
     this.renderClientSide();
@@ -419,10 +414,11 @@ function isTestFunction(value: any): value is (this: AbstractRenderTest, assert:
   return typeof value === 'function' && value.isTest;
 }
 
-export function renderTemplate(env: TestEnvironment, template: Template<Opaque>, options: RenderOptions) {
+export function renderTemplate(template: string, options: RenderOptions & { env: TestEnvironment }) {
+  let { env } = options;
   env.begin();
 
-  let templateIterator = template.render(options);
+  let templateIterator = env.compile(template).render(options);
 
   let iteratorResult: IteratorResult<RenderResult>;
 
